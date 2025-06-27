@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>財務科目自動篩選邏輯模擬器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+        }
+        .result-card {
+            transition: all 0.3s ease-in-out;
+            transform: translateY(20px);
+            opacity: 0;
+            display: none;
+        }
+        .result-card.show {
+            transform: translateY(0);
+            opacity: 1;
+            display: block;
+        }
+        .status-pass {
+            color: #10B981; /* green-600 */
+            background-color: #D1FAE5; /* green-100 */
+        }
+        .status-fail {
+            color: #EF4444; /* red-500 */
+            background-color: #FEE2E2; /* red-100 */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 p-4 md:p-8">
+
+    <div class="max-w-4xl mx-auto">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 md:p-8">
+            <div class="text-center mb-6">
+                <h1 class="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">財務科目自動篩選邏輯模擬器</h1>
+                <p class="mt-2 text-gray-600 dark:text-gray-400">此工具用於模擬驗證「重大財務科目」的自動篩選邏輯。</p>
+            </div>
+            
+            <!-- Logic Explanation -->
+            <div class="bg-blue-50 dark:bg-gray-700/50 border border-blue-200 dark:border-gray-600 rounded-lg p-4 mb-8">
+                <h2 class="text-lg font-bold text-blue-800 dark:text-blue-300 mb-2">篩選規則說明</h2>
+                <p class="text-gray-700 dark:text-gray-300">
+                    系統會自動選取一個會計科目，當它 **同時滿足** 以下兩個條件：
+                </p>
+                <ul class="list-disc list-inside mt-2 space-y-1 text-gray-700 dark:text-gray-300">
+                    <li><strong class="text-blue-600 dark:text-blue-400">佔比條件：</strong> 任一期 (當期或上一期) 的科目金額佔總額超過 <strong>10%</strong>。</li>
+                    <li><strong class="text-blue-600 dark:text-blue-400">變動率條件：</strong> 當期金額相較於上一期的變動率絕對值超過 <strong>20%</strong>。</li>
+                </ul>
+            </div>
+
+            <!-- Input Form -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6">
+                <!-- Previous Period -->
+                <div class="bg-gray-50 dark:bg-gray-700/30 p-4 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-4 text-center">上一期 (Previous Period)</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label for="prevSubjectValue" class="block text-sm font-medium text-gray-700 dark:text-gray-300">會計科目金額 (元)</label>
+                            <input type="number" id="prevSubjectValue" class="mt-1 block w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" placeholder="例如: 150000">
+                        </div>
+                        <div>
+                            <label for="prevTotalValue" class="block text-sm font-medium text-gray-700 dark:text-gray-300">總額 (總資產/負債/權益) (元)</label>
+                            <input type="number" id="prevTotalValue" class="mt-1 block w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" placeholder="例如: 1000000">
+                        </div>
+                    </div>
+                </div>
+                <!-- Current Period -->
+                <div class="bg-gray-50 dark:bg-gray-700/30 p-4 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-4 text-center">當期 (Current Period)</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label for="currSubjectValue" class="block text-sm font-medium text-gray-700 dark:text-gray-300">會計科目金額 (元)</label>
+                            <input type="number" id="currSubjectValue" class="mt-1 block w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" placeholder="例如: 200000">
+                        </div>
+                        <div>
+                            <label for="currTotalValue" class="block text-sm font-medium text-gray-700 dark:text-gray-300">總額 (總資產/負債/權益) (元)</label>
+                            <input type="number" id="currTotalValue" class="mt-1 block w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" placeholder="例如: 1100000">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center">
+                <button id="calculateBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-lg shadow-md transition-transform transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    開始驗算
+                </button>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="results" class="result-card mt-8 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 md:p-8">
+            <h2 class="text-2xl font-bold text-center mb-6">驗算結果</h2>
+            <div class="space-y-6">
+                <!-- Step 1: Proportion Check -->
+                <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0 bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-lg">1</div>
+                        <div class="ml-4">
+                            <h3 class="text-lg font-semibold">佔比條件檢核 (任一期 > 10%)</h3>
+                            <div class="text-sm text-gray-600 dark:text-gray-400 mt-2 space-y-1">
+                                <p>上一期佔比: <code id="prevRatio" class="font-mono"></code></p>
+                                <p>當&nbsp;&nbsp;&nbsp;&nbsp;期佔比: <code id="currRatio" class="font-mono"></code></p>
+                            </div>
+                            <div id="proportionResult" class="mt-3 inline-block px-3 py-1 text-sm font-semibold rounded-full"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2: Change Check -->
+                <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                     <div class="flex items-start">
+                        <div class="flex-shrink-0 bg-green-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-lg">2</div>
+                        <div class="ml-4">
+                            <h3 class="text-lg font-semibold">變動率條件檢核 (> 20%)</h3>
+                            <div class="text-sm text-gray-600 dark:text-gray-400 mt-2 space-y-1">
+                                <p>變動率: <code id="diffRatio" class="font-mono"></code></p>
+                            </div>
+                            <div id="changeResult" class="mt-3 inline-block px-3 py-1 text-sm font-semibold rounded-full"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Final Result -->
+                <div id="finalResultCard" class="text-center p-6 rounded-lg">
+                    <h3 class="text-xl font-bold" id="finalResultText"></h3>
+                    <p class="mt-2 text-gray-600 dark:text-gray-400" id="finalResultReason"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DOM Element References ---
+        const prevSubjectValueEl = document.getElementById('prevSubjectValue');
+        const prevTotalValueEl = document.getElementById('prevTotalValue');
+        const currSubjectValueEl = document.getElementById('currSubjectValue');
+        const currTotalValueEl = document.getElementById('currTotalValue');
+        const calculateBtn = document.getElementById('calculateBtn');
+        
+        const resultsEl = document.getElementById('results');
+        const prevRatioEl = document.getElementById('prevRatio');
+        const currRatioEl = document.getElementById('currRatio');
+        const proportionResultEl = document.getElementById('proportionResult');
+        const diffRatioEl = document.getElementById('diffRatio');
+        const changeResultEl = document.getElementById('changeResult');
+
+        const finalResultCardEl = document.getElementById('finalResultCard');
+        const finalResultTextEl = document.getElementById('finalResultText');
+        const finalResultReasonEl = document.getElementById('finalResultReason');
+
+        // --- Event Listener ---
+        calculateBtn.addEventListener('click', () => {
+            // --- 1. Get and Validate Inputs ---
+            const prevSubjectValue = parseFloat(prevSubjectValueEl.value);
+            const prevTotalValue = parseFloat(prevTotalValueEl.value);
+            const currSubjectValue = parseFloat(currSubjectValueEl.value);
+            const currTotalValue = parseFloat(currTotalValueEl.value);
+
+            if (isNaN(prevSubjectValue) || isNaN(prevTotalValue) || isNaN(currSubjectValue) || isNaN(currTotalValue)) {
+                alert('請輸入所有有效的數字欄位。');
+                return;
+            }
+
+            // --- 2. Perform Calculations (mirroring Java logic) ---
+
+            // Check for division by zero
+            if (prevTotalValue === 0 || currTotalValue === 0 || prevSubjectValue === 0) {
+                 alert('總額或上一期科目金額不能為 0，這會導致無法計算比率。');
+                 return;
+            }
+            
+            // --- Step 1: Proportion Calculation ---
+            const prevRatio = Math.abs(prevSubjectValue / prevTotalValue);
+            const currRatio = Math.abs(currSubjectValue / currTotalValue);
+            const isProportionMet = prevRatio > 0.1 || currRatio > 0.1;
+
+            // --- Step 2: Difference Calculation ---
+            const diffRatio = Math.abs((currSubjectValue - prevSubjectValue) / prevSubjectValue);
+            const isChangeMet = diffRatio > 0.2;
+
+            // --- 3. Update UI with Results ---
+
+            // Show results container
+            resultsEl.classList.add('show');
+            
+            // --- Display Proportion Results ---
+            prevRatioEl.textContent = `|${prevSubjectValue} / ${prevTotalValue}| = ${(prevRatio * 100).toFixed(2)}%`;
+            currRatioEl.textContent = `|${currSubjectValue} / ${currTotalValue}| = ${(currRatio * 100).toFixed(2)}%`;
+            
+            if (isProportionMet) {
+                proportionResultEl.textContent = '滿足';
+                proportionResultEl.className = 'mt-3 inline-block px-3 py-1 text-sm font-semibold rounded-full status-pass';
+            } else {
+                proportionResultEl.textContent = '不滿足';
+                proportionResultEl.className = 'mt-3 inline-block px-3 py-1 text-sm font-semibold rounded-full status-fail';
+            }
+
+            // --- Display Change Results ---
+            diffRatioEl.textContent = `|(${currSubjectValue} - ${prevSubjectValue}) / ${prevSubjectValue}| = ${(diffRatio * 100).toFixed(2)}%`;
+
+            if (isChangeMet) {
+                changeResultEl.textContent = '滿足';
+                changeResultEl.className = 'mt-3 inline-block px-3 py-1 text-sm font-semibold rounded-full status-pass';
+            } else {
+                changeResultEl.textContent = '不滿足';
+                changeResultEl.className = 'mt-3 inline-block px-3 py-1 text-sm font-semibold rounded-full status-fail';
+            }
+
+            // --- Display Final Result ---
+            if (isProportionMet && isChangeMet) {
+                finalResultCardEl.className = 'text-center p-6 rounded-lg status-pass';
+                finalResultTextEl.textContent = '結論：此科目會被【自動選取】';
+                finalResultReasonEl.textContent = '因为它同時滿足了「佔比條件」與「變動率條件」。';
+            } else {
+                finalResultCardEl.className = 'text-center p-6 rounded-lg status-fail';
+                finalResultTextEl.textContent = '結論：此科目【不會】被自動選取';
+                
+                let reason = '因为它未能滿足';
+                if (!isProportionMet && !isChangeMet) {
+                    reason += '「佔比條件」和「變動率條件」。';
+                } else if (!isProportionMet) {
+                    reason += '「佔比條件」。';
+                } else {
+                    reason += '「變動率條件」。';
+                }
+                finalResultReasonEl.textContent = reason;
+            }
+            
+            // Scroll to results on smaller screens
+            if (window.innerWidth < 768) {
+                resultsEl.scrollIntoView({ behavior: 'smooth' });
+            }
+        });
+    </script>
+</body>
+</html>
