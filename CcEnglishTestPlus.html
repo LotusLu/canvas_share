@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>英文互動練習題 (智慧學習版)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans TC', 'Inter', sans-serif;
+        }
+        .option-btn {
+            transition: all 0.2s ease-in-out;
+        }
+        .option-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .correct {
+            background-color: #22c55e !important; /* green-500 */
+            color: white !important;
+            border-color: #16a34a; /* green-600 */
+        }
+        .incorrect {
+            background-color: #ef4444 !important; /* red-500 */
+            color: white !important;
+            border-color: #dc2626; /* red-600 */
+        }
+        .disabled {
+            pointer-events: none;
+            opacity: 0.8;
+        }
+        /* Custom radio button styles */
+        .custom-radio input:checked + label {
+            border-color: #3b82f6; /* blue-500 */
+            background-color: #eff6ff; /* blue-50 */
+            color: #2563eb; /* blue-600 */
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 flex items-center justify-center min-h-screen p-4">
+
+    <div class="bg-white w-full max-w-2xl p-6 sm:p-8 rounded-2xl shadow-lg">
+        
+        <!-- Start Screen -->
+        <div id="start-screen">
+            <div class="text-center mb-8">
+                <h1 class="text-2xl sm:text-3xl font-bold text-slate-800">英文小測驗</h1>
+                <p class="text-slate-500 mt-2">準備好挑戰了嗎？請先選擇題數。</p>
+            </div>
+            <div class="mb-8">
+                <h2 class="text-lg font-semibold text-gray-700 mb-4 text-center">請選擇題數</h2>
+                <div id="question-count-selection" class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div class="custom-radio">
+                        <input type="radio" id="count10" name="questionCount" value="10" class="hidden" checked>
+                        <label for="count10" class="block text-center p-4 border-2 rounded-lg cursor-pointer transition-colors">10 題</label>
+                    </div>
+                    <div class="custom-radio">
+                        <input type="radio" id="count20" name="questionCount" value="20" class="hidden">
+                        <label for="count20" class="block text-center p-4 border-2 rounded-lg cursor-pointer transition-colors">20 題</label>
+                    </div>
+                    <div class="custom-radio">
+                        <input type="radio" id="count30" name="questionCount" value="30" class="hidden">
+                        <label for="count30" class="block text-center p-4 border-2 rounded-lg cursor-pointer transition-colors">30 題</label>
+                    </div>
+                    <div class="custom-radio">
+                        <input type="radio" id="countAll" name="questionCount" value="all" class="hidden">
+                        <label for="countAll" class="block text-center p-4 border-2 rounded-lg cursor-pointer transition-colors">全部</label>
+                    </div>
+                </div>
+            </div>
+            <div class="text-center">
+                <button id="start-btn" class="bg-blue-500 text-white font-bold py-3 px-8 rounded-full hover:bg-blue-600 transition-colors duration-300 w-full sm:w-auto">開始測驗</button>
+            </div>
+        </div>
+
+        <!-- Quiz Container -->
+        <div id="quiz-container" class="hidden">
+            <div id="quiz-header" class="text-center mb-6">
+                <h1 class="text-2xl sm:text-3xl font-bold text-slate-800">英文小測驗</h1>
+                <p class="text-slate-500 mt-2">加油！看看能答對幾題！</p>
+            </div>
+
+            <div id="question-area">
+                <div class="flex justify-between items-center mb-4">
+                    <p class="text-lg font-semibold text-blue-600">第 <span id="question-number">1</span> / <span id="total-selected-questions">10</span> 題</p>
+                    <p id="reading-passage-trigger" class="text-sm text-blue-500 hover:text-blue-700 cursor-pointer hidden">📖 閱讀文章</p>
+                </div>
+                
+                <div id="reading-passage-content" class="bg-gray-100 p-4 rounded-lg mb-4 hidden prose max-w-none">
+                    <p class="font-bold text-gray-700">請閱讀以下短文後回答問題：</p>
+                    <p id="passage-text" class="text-gray-600"></p>
+                </div>
+
+                <h2 id="question-text" class="text-xl sm:text-2xl font-bold text-gray-800 mb-6 min-h-[60px]"></h2>
+                <div id="options-container" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
+            </div>
+
+            <div id="feedback-area" class="text-center mt-6 h-8">
+                <p id="feedback-text" class="text-xl font-bold"></p>
+            </div>
+
+            <div class="mt-8 text-center">
+                <button id="next-btn" class="bg-blue-500 text-white font-bold py-3 px-8 rounded-full hover:bg-blue-600 transition-colors duration-300 w-full sm:w-auto hidden">下一題</button>
+            </div>
+        </div>
+
+        <!-- Result Area -->
+        <div id="result-area" class="hidden text-center">
+            <h2 class="text-3xl font-bold text-slate-800 mb-4">測驗結束！</h2>
+            <p class="text-5xl font-bold text-blue-600 mb-2"><span id="score">0</span><span class="text-2xl text-slate-500"> 分</span></p>
+            <p class="text-lg text-slate-600 mb-6">你答對了 <span id="correct-answers">0</span> 題，共 <span id="total-questions">0</span> 題。</p>
+            <p id="result-message" class="text-xl font-medium text-yellow-500 mb-8"></p>
+            <button id="restart-btn" class="bg-green-500 text-white font-bold py-3 px-8 rounded-full hover:bg-green-600 transition-colors duration-300">再試一次</button>
+        </div>
+    </div>
+
+    <script>
+        // --- 全部的題庫 ---
+        const allQuestions = [
+            // 原有題目，但替換人名與地點
+            { question: "What will Mia do next Tuesday?", options: ["She is going to go to the store next Tuesday.", "She will send an email next Tuesday.", "She is at the post office.", "She is meeting her friends."], answer: "She will send an email next Tuesday." },
+            { question: "What is your father going to do next week?", options: ["He is swimming.", "He is going to go swimming.", "He swims.", "He likes to swim."], answer: "He is going to go swimming." },
+            { question: "Is Leo going to see a doctor tomorrow?", options: ["Yes, he's going to see a doctor tomorrow.", "No, he's going to visit his cousin tomorrow.", "Yes, he's going to watch a TV show tomorrow.", "No, he's going to study Math tomorrow."], answer: "No, he's going to study Math tomorrow." },
+            { question: "A: Hi, Ben, I'm going to meet my classmates. B: Great! Where? A: Near the new park. B: Can I join you? A: ___", options: ["No, I don't like juice.", "Sure, I'll meet you there at three o'clock.", "No problem. I want to go jogging, too.", "Let's do it!"], answer: "Sure, I'll meet you there at three o'clock." },
+            { question: "Q: What are they going to do this weekend?", options: ["They are going to watch a soccer game.", "They are going to see a play.", "They are going to meet a teacher.", "They are going to watch a basketball game."], answer: "They are going to watch a soccer game." },
+            { question: "Q: What will they buy?", options: ["They will play chess.", "They will eat some fruit.", "They will meet their family.", "They will buy the comic book."], answer: "They will buy the comic book." },
+            { question: "What ___ they going to do tomorrow?", options: ["do", "is", "am", "are"], answer: "are" },
+            { question: "What is Sam ___ next Friday?", options: ["doing", "going to do", "going to doing", "do"], answer: "going to do" },
+            { question: "Lily ___ to the museum tomorrow.", options: ["is no going", "not going", "isn't going", "going not"], answer: "isn't going" },
+            { question: "___ your aunt going to do next month?", options: ["How will", "When is", "How was", "What is"], answer: "What is" },
+            { question: "___ you get the gift next week?", options: ["Are", "Will", "Was", "Were"], answer: "Will" },
+            { question: "When is Kevin going to play badminton?", options: ["He plays badminton on Saturday.", "He plays badminton in May.", "He is going to play badminton in two days.", "He is going to play basketball in two days."], answer: "He is going to play badminton in two days." },
+            { question: "Is Amy going to visit her uncle in two weeks?", options: ["No, she is going to visit her uncle in one week.", "Yes, she is going to visit her uncle in two weeks.", "No, she is going to visit her uncle in three weeks.", "Yes, she is going to visit her uncle in July."], answer: "Yes, she is going to visit her uncle in two weeks." },
+            { question: "When are you going to have music class?", options: ["I am going to have music class.", "I am going to have music class in one hour.", "I am going to sing some songs.", "I am in music class."], answer: "I am going to have music class in one hour." },
+            { question: "A: This is my classmate, Zoe. She is going to travel with her parents. B: Really! When? A: ___", options: ["They will go to the USA.", "They will see the pandas.", "They are going to stay for two weeks.", "They are going to stay for one night."], answer: "They are going to stay for two weeks." },
+            { question: "Q: When is his friend coming to visit?", options: ["In one week.", "In June.", "In May.", "In three days."], answer: "In May." },
+            { question: "Q: How long will he stay in the UK?", options: ["He will go in August.", "He will go to Korea.", "He will stay for 3 months.", "He is twelve years old."], answer: "He will stay for 3 months." },
+            { question: "Q: When will they meet?", options: ["They will meet at 5 o'clock.", "They will meet at 7 o'clock.", "They will meet at 9 o'clock.", "They will meet at 1 o'clock."], answer: "They will meet at 9 o'clock." },
+            { question: "I am going to ___ a picture tomorrow.", options: ["drawing", "draw", "will draw", "am drawing"], answer: "draw" },
+            { question: "___ are you going to play the piano?", options: ["What", "When", "Can", "Who"], answer: "When" },
+            { question: "She is going to do her project ___.", options: ["in ten minutes", "at two hours", "on three minutes", "ten minutes"], answer: "in ten minutes" },
+            { question: "Which one is smaller?", options: ["The cat is smaller.", "The dog is small.", "The cat is smaller than the dog.", "The dog is smaller than the cat."], answer: "The dog is smaller than the cat." },
+            { question: "A: I'm going to Japan in January. B: Cool! What are you going to do? A: ___", options: ["I am going to do many things, like see the temples.", "I am cleaning the room with my mom.", "I'm taking a train.", "My address is on this street."], answer: "I am going to do many things, like see the temples." },
+            { question: "Q: What's her birthday gift?", options: ["A new doll.", "A new laptop.", "A board game.", "A new phone."], answer: "A new laptop." },
+            { question: "Q: When is her birthday?", options: ["Her birthday is today.", "Her birthday is in October.", "She needs a new bag.", "She doesn't want a new gift."], answer: "Her birthday is today." },
+            { question: "David ___ short.", options: ["are", "is", "is going to", "will"], answer: "is" },
+            { question: "Is the lion heavier than the cat?", options: ["No, it's not. The cat is bigger than the lion.", "Yes, it is. The lion is heavier than the cat.", "No, it isn't. The lion is lighter than the cat.", "Yes, it is. The lion is bigger than the cat."], answer: "Yes, it is. The lion is heavier than the cat." },
+            { question: "Which one is slower?", options: ["The turtle is slow.", "The turtle is slower.", "The rabbit is faster.", "The rabbit is slower."], answer: "The turtle is slower." },
+            { question: "Q: What does he like?", options: ["He likes lions.", "He likes tigers.", "He likes lions and tigers.", "He doesn't like lions or tigers."], answer: "He likes lions and tigers." },
+            { question: "Q: What are their favorite fruits?", options: ["The apple and the banana.", "The banana and the grape.", "The orange and the pear.", "The apple and the orange."], answer: "The apple and the banana." },
+            { question: "Leo is ___ than his sister.", options: ["tall", "taller", "taller", "young"], answer: "taller" },
+            { question: "___ an elephant ___ than a hippo?", options: ["Is / big", "Is / bigger", "Will / bigger", "Were / big"], answer: "Is / bigger" },
+            { question: "Is the red dress more expensive than the blue dress?", options: ["Yes, the red dress is more expensive than the blue dress.", "No, the red dress isn't more expensive than the blue dress.", "The blue one is expensive.", "The red one is more expensive."], answer: "Yes, the red dress is more expensive than the blue dress." },
+            { question: "Is the pizza more delicious than the sandwich?", options: ["No, the sandwich is more delicious than the pizza.", "Yes, the pizza is more delicious than the sandwich.", "Yes, the sandwich is delicious.", "No, the pizza is delicious."], answer: "Yes, the pizza is more delicious than the sandwich." },
+            { question: "Q: What do they see?", options: ["They see many toys.", "They see many storybooks.", "They see a concert.", "They see many cars."], answer: "They see many storybooks." },
+            { question: "Q: Does Ben want to go with the girl?", options: ["Yes, he wants to play with her.", "No, he doesn't want to play with her.", "Yes, he wants to read the book.", "No, he doesn't want to read the book."], answer: "No, he doesn't want to play with her." },
+            { question: "The red car is ___ than the blue car.", options: ["fast", "faster", "more fast", "not fast"], answer: "faster" },
+            { question: "My cake isn't ___ than your cake.", options: ["delicious", "more delicious", "deliciouser", "very delicious"], answer: "more delicious" },
+            { question: "This movie is ___ than that movie.", options: ["no interesting", "more interesting", "interesting", "interestinger"], answer: "more interesting" },
+            { question: "How was the girl in the USA?", options: ["She was bored there.", "She was excited there.", "She was in the USA.", "She was tired there."], answer: "She was excited there." },
+            { question: "A: Hi, Tom. What was wrong with you yesterday? B: I was really happy! A: Why? B: ___", options: ["I don't know!", "Because I lost my wallet.", "Because I have to leave.", "Because I'm going to join the school team."], answer: "Because I'm going to join the school team." },
+            { question: "Q: What does the girl want to do?", options: ["She wants to do some sit-ups.", "She wants to do some push-ups.", "She wants to do some stretching.", "She wants to do some chin-ups."], answer: "She wants to do some stretching." },
+            { question: "Q: Is the girl sad?", options: ["Yes, she is very sad.", "No, she is very happy.", "Yes, she can do lots of things.", "No, she has short hair."], answer: "No, she is very happy." },
+            { question: "We ___ excited yesterday.", options: ["are", "was", "am", "were"], answer: "were" },
+            { question: "Was the cat angry yesterday?", options: ["Yes, it is.", "Yes, it was.", "No, it wasn't. It was happy.", "No, it isn't. It is happy."], answer: "No, it wasn't. It was happy." },
+            { question: "Were the boys at the park last Sunday?", options: ["No, they were at the office.", "No, they were buying some drinks.", "Yes, they were at the park.", "Yes, they like dogs."], answer: "Yes, they were at the park." },
+            { question: "Were you tired yesterday?", options: ["No, I was energetic yesterday.", "Yes, I was tired yesterday.", "No, I was scared yesterday.", "Yes, I was angry yesterday."], answer: "Yes, I was tired yesterday." },
+            { question: "Q: Where are her glasses now?", options: ["They're in the drawer.", "They're in her schoolbag.", "They're under the table.", "They're on the chair."], answer: "They're in her schoolbag." },
+            { question: "___ she at school last Friday?", options: ["Were", "Are", "Can", "Was"], answer: "Was" },
+            { question: "___ you and your brother at the zoo yesterday?", options: ["Are", "Was", "Were", "Will"], answer: "Were" },
+            { question: "___ in the classroom ten minutes ago.", options: ["We are", "Were we", "We will", "We were"], answer: "We were" },
+            { question: "Where was he last month?", options: ["He will have a good time there.", "He likes to go hiking.", "He was happy last month.", "He was at the beach."], answer: "He was at the beach." },
+            { question: "Where was Lisa last summer?", options: ["She is in Canada.", "She was in Canada.", "She is in Australia.", "She was in Australia."], answer: "She was in Canada." },
+            { question: "Where were they last night?", options: ["They were happy there.", "They are dancing there.", "They were at the gym.", "They were at the concert."], answer: "They were at the concert." },
+            { question: "Q: Where will the girl go?", options: ["She'll go to Germany.", "She'll go to France.", "She'll go to Spain.", "She'll go to Italy."], answer: "She'll go to France." },
+            { question: "Q: What does the boy need?", options: ["He needs flour.", "He needs butter.", "He needs sugar.", "He needs tickets."], answer: "He needs butter." },
+            { question: "Where ___ Leo last night?", options: ["does", "is", "were", "was"], answer: "was" },
+            { question: "Where ___ the kids yesterday?", options: ["are", "aren't", "were", "was"], answer: "were" },
+            // Reading Passages
+            { passage: "I am Ellie. Today is Friday. My family and I are going to Malaysia to visit my uncle and aunt tomorrow. We will go there by plane. My uncle has three cows, ten roosters and a horse. We will play with the animals and I will ride a horse with my father.", question: "What day is today?", options: ["Friday", "Thursday", "Wednesday", "Saturday"], answer: "Friday" },
+            { passage: "I am Ellie. Today is Friday. My family and I are going to Malaysia to visit my uncle and aunt tomorrow. We will go there by plane. My uncle has three cows, ten roosters and a horse. We will play with the animals and I will ride a horse with my father.", question: "When will Ellie's family go to Malaysia?", options: ["Friday", "Saturday", "Monday", "Tuesday"], answer: "Saturday" },
+            { passage: "I am Ellie. Today is Friday. My family and I are going to Malaysia to visit my uncle and aunt tomorrow. We will go there by plane. My uncle has three cows, ten roosters and a horse. We will play with the animals and I will ride a horse with my father.", question: "How will they go to Malaysia?", options: ["They will go there by bus.", "They will go there by plane.", "They will go there by car.", "They will walk there."], answer: "They will go there by plane." },
+            { passage: "I am Ellie. Today is Friday. My family and I are going to Malaysia to visit my uncle and aunt tomorrow. We will go there by plane. My uncle has three cows, ten roosters and a horse. We will play with the animals and I will ride a horse with my father.", question: "How many roosters does his uncle have?", options: ["There are nine roosters.", "He has ten roosters.", "He has nine roosters.", "There are two roosters."], answer: "He has ten roosters." },
+            { passage: "I am Ellie. Today is Friday. My family and I are going to Malaysia to visit my uncle and aunt tomorrow. We will go there by plane. My uncle has three cows, ten roosters and a horse. We will play with the animals and I will ride a horse with my father.", question: "What will Ellie do with her father?", options: ["She will kick a ball with her father.", "She will make cookies with her father.", "She will ride a horse with her father.", "She will play games with her father."], answer: "She will ride a horse with her father." },
+            { passage: "Here is my family together. My name is Josh. I am a student. I am taller than my brother. My mother is a nurse. She is thinner than my father. My grandfather and grandmother are behind my parents. They are older than I am.", question: "How many people are there in Josh's family?", options: ["seven", "six", "three", "four"], answer: "six" },
+            { passage: "Here is my family together. My name is Josh. I am a student. I am taller than my brother. My mother is a nurse. She is thinner than my father. My grandfather and grandmother are behind my parents. They are older than I am.", question: "Is Josh taller than his brother?", options: ["Yes, he is.", "No, he isn't.", "Yes, he is tall.", "No, he is shorter."], answer: "Yes, he is." },
+            { passage: "Here is my family together. My name is Josh. I am a student. I am taller than my brother. My mother is a nurse. She is thinner than my father. My grandfather and grandmother are behind my parents. They are older than I am.", question: "Who is heavier than Josh's mother?", options: ["Josh", "Josh's brother", "Josh's grandmother", "Josh's father"], answer: "Josh's father" },
+            { passage: "My name is Lucy. I went to a farm last weekend with my family. My brother, Tom, is younger than me. He likes pigs. I think rabbits are cuter than pigs. My father is a doctor. He is taller than my mother. We saw many sheep on the farm. It was a happy day.", question: "Where did Lucy go last weekend?", options: ["To the zoo", "To a farm", "To the park", "To a museum"], answer: "To a farm" },
+            { passage: "My name is Lucy. I went to a farm last weekend with my family. My brother, Tom, is younger than me. He likes pigs. I think rabbits are cuter than pigs. My father is a doctor. He is taller than my mother. We saw many sheep on the farm. It was a happy day.", question: "Who is younger, Lucy or Tom?", options: ["Lucy", "Tom", "They are the same age", "The passage doesn't say"], answer: "Tom" },
+            { passage: "My name is Lucy. I went to a farm last weekend with my family. My brother, Tom, is younger than me. He likes pigs. I think rabbits are cuter than pigs. My father is a doctor. He is taller than my mother. We saw many sheep on the farm. It was a happy day.", question: "Which animal does Lucy think is cuter?", options: ["Pigs", "Sheep", "Rabbits", "Cows"], answer: "Rabbits" }
+        ];
+
+        // --- DOM Elements ---
+        const startScreen = document.getElementById('start-screen');
+        const startBtn = document.getElementById('start-btn');
+        const quizContainer = document.getElementById('quiz-container');
+        const questionArea = document.getElementById('question-area');
+        const questionNumberEl = document.getElementById('question-number');
+        const totalSelectedQuestionsEl = document.getElementById('total-selected-questions');
+        const questionTextEl = document.getElementById('question-text');
+        const optionsContainer = document.getElementById('options-container');
+        const nextBtn = document.getElementById('next-btn');
+        const resultArea = document.getElementById('result-area');
+        const scoreEl = document.getElementById('score');
+        const correctAnswersEl = document.getElementById('correct-answers');
+        const totalQuestionsEl = document.getElementById('total-questions');
+        const restartBtn = document.getElementById('restart-btn');
+        const feedbackTextEl = document.getElementById('feedback-text');
+        const resultMessageEl = document.getElementById('result-message');
+        const readingPassageTrigger = document.getElementById('reading-passage-trigger');
+        const readingPassageContent = document.getElementById('reading-passage-content');
+        const passageTextEl = document.getElementById('passage-text');
+
+        // --- Quiz State ---
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let quizQuestions = [];
+
+        function init() {
+            startScreen.classList.remove('hidden');
+            quizContainer.classList.add('hidden');
+            resultArea.classList.add('hidden');
+            startBtn.addEventListener('click', startQuiz);
+            restartBtn.addEventListener('click', () => {
+                // When restarting, go back to the start screen
+                resultArea.classList.add('hidden');
+                startScreen.classList.remove('hidden');
+            });
+            readingPassageTrigger.addEventListener('click', () => {
+                readingPassageContent.classList.toggle('hidden');
+            });
+            nextBtn.addEventListener('click', handleNextButton);
+        }
+
+        function startQuiz() {
+            const selectedCountValue = document.querySelector('input[name="questionCount"]:checked').value;
+            
+            // Shuffle all questions first
+            const shuffledAll = allQuestions.sort(() => Math.random() - 0.5);
+            
+            // Select the number of questions for the quiz
+            if (selectedCountValue === 'all') {
+                quizQuestions = shuffledAll;
+            } else {
+                const count = parseInt(selectedCountValue, 10);
+                quizQuestions = shuffledAll.slice(0, count);
+            }
+
+            // Reset state
+            currentQuestionIndex = 0;
+            score = 0;
+            
+            // Update UI
+            startScreen.classList.add('hidden');
+            quizContainer.classList.remove('hidden');
+            resultArea.classList.add('hidden');
+            nextBtn.classList.add('hidden');
+            feedbackTextEl.textContent = '';
+            totalSelectedQuestionsEl.textContent = quizQuestions.length;
+            
+            showQuestion();
+        }
+
+        function showQuestion() {
+            resetState();
+            const currentQuestion = quizQuestions[currentQuestionIndex];
+            questionNumberEl.textContent = currentQuestionIndex + 1;
+            questionTextEl.textContent = currentQuestion.question;
+            
+            if (currentQuestion.passage) {
+                passageTextEl.textContent = currentQuestion.passage;
+                readingPassageContent.classList.remove('hidden');
+                readingPassageTrigger.classList.remove('hidden');
+            } else {
+                readingPassageContent.classList.add('hidden');
+                readingPassageTrigger.classList.add('hidden');
+            }
+
+            const shuffledOptions = [...currentQuestion.options].sort(() => Math.random() - 0.5);
+
+            shuffledOptions.forEach(option => {
+                const button = document.createElement('button');
+                button.innerText = option;
+                button.classList.add('option-btn', 'w-full', 'p-4', 'text-left', 'bg-white', 'border-2', 'border-slate-300', 'rounded-lg', 'hover:bg-blue-100', 'hover:border-blue-400', 'focus:outline-none', 'focus:ring-2', 'focus:ring-blue-400');
+                button.addEventListener('click', selectAnswer);
+                optionsContainer.appendChild(button);
+            });
+        }
+
+        function resetState() {
+            nextBtn.classList.add('hidden');
+            feedbackTextEl.textContent = '';
+            while (optionsContainer.firstChild) {
+                optionsContainer.removeChild(optionsContainer.firstChild);
+            }
+        }
+
+        function selectAnswer(e) {
+            const selectedBtn = e.target;
+            const isCorrect = selectedBtn.innerText === quizQuestions[currentQuestionIndex].answer;
+
+            if (isCorrect) {
+                score++;
+                selectedBtn.classList.add('correct');
+                feedbackTextEl.textContent = '答對了！�';
+                feedbackTextEl.classList.add('text-green-500');
+                feedbackTextEl.classList.remove('text-red-500');
+            } else {
+                selectedBtn.classList.add('incorrect');
+                feedbackTextEl.textContent = '再想一下！🤔';
+                feedbackTextEl.classList.add('text-red-500');
+                feedbackTextEl.classList.remove('text-green-500');
+            }
+
+            Array.from(optionsContainer.children).forEach(button => {
+                if (button.innerText === quizQuestions[currentQuestionIndex].answer) {
+                    button.classList.add('correct');
+                }
+                button.classList.add('disabled');
+            });
+            
+            nextBtn.classList.remove('hidden');
+        }
+
+        function showResults() {
+            quizContainer.classList.add('hidden');
+            resultArea.classList.remove('hidden');
+            
+            const finalScore = Math.round((score / quizQuestions.length) * 100);
+            scoreEl.textContent = finalScore;
+            correctAnswersEl.textContent = score;
+            totalQuestionsEl.textContent = quizQuestions.length;
+
+            if (finalScore === 100) {
+                resultMessageEl.textContent = "太棒了，全部答對！你是最棒的！💯";
+                resultMessageEl.className = "text-xl font-medium text-green-500 mb-8";
+            } else if (finalScore >= 80) {
+                resultMessageEl.textContent = "表現得很好，繼續努力！👍";
+                resultMessageEl.className = "text-xl font-medium text-blue-500 mb-8";
+            } else if (finalScore >= 60) {
+                resultMessageEl.textContent = "還不錯喔，再多練習幾次會更好！😊";
+                 resultMessageEl.className = "text-xl font-medium text-yellow-500 mb-8";
+            } else {
+                resultMessageEl.textContent = "別灰心，練習是進步的唯一方法！💪";
+                resultMessageEl.className = "text-xl font-medium text-red-500 mb-8";
+            }
+        }
+
+        function handleNextButton() {
+            currentQuestionIndex++;
+            if (currentQuestionIndex < quizQuestions.length) {
+                showQuestion();
+            } else {
+                showResults();
+            }
+        }
+
+        // Initialize the app
+        init();
+    </script>
+</body>
+</html>
+�
