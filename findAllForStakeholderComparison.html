@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>互動式 SQL 查詢分析器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #f0f4f8;
+        }
+        .card {
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+        }
+        .card:hover {
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            transform: translateY(-4px);
+        }
+        .pill {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin: 4px;
+            cursor: help;
+        }
+        .pill-blue { background-color: #e0f2fe; color: #0c4a6e; }
+        .pill-green { background-color: #dcfce7; color: #166534; }
+        .pill-red { background-color: #fee2e2; color: #991b1b; }
+        .pill-yellow { background-color: #fef9c3; color: #854d0e; }
+        .pill-gray { background-color: #f3f4f6; color: #4b5563; cursor: default; }
+        .pill-purple { background-color: #f3e8ff; color: #581c87; }
+
+        .arrow {
+            position: relative;
+            padding: 10px 0;
+            text-align: center;
+            color: #64748b;
+            font-weight: bold;
+        }
+        .arrow::after {
+            content: '▼';
+            display: block;
+            font-size: 1.5rem;
+            margin-top: -5px;
+        }
+        .join-line {
+            position: absolute;
+            border-left: 2px dashed #94a3b8;
+            height: 100%;
+            left: 50%;
+            top: 0;
+            z-index: -1;
+        }
+        .join-text {
+            background-color: #f0f4f8;
+            padding: 2px 8px;
+            font-size: 0.8rem;
+            color: #475569;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+        }
+        .accordion-header {
+            cursor: pointer;
+        }
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        .accordion-content.open {
+            max-height: 1000px; /* Adjust as needed */
+            transition: max-height 0.5s ease-in;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div class="max-w-7xl mx-auto">
+        <header class="text-center mb-10">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-800">SQL 查詢邏輯解析 (v2.0)</h1>
+            <p class="text-gray-600 mt-2">這是一個互動式的介面，結合了 DDL 的中文註解，用來解釋一段複雜的 SQL 查詢。</p>
+        </header>
+
+        <!-- 1. 查詢目標 -->
+        <section class="mb-10">
+            <h2 class="text-2xl font-bold text-gray-700 mb-4 border-l-4 border-blue-500 pl-3">1. 查詢目標</h2>
+            <div class="card p-6">
+                <p class="text-gray-700 leading-relaxed">
+                    這個查詢的主要目的是為了**找出符合特定條件的歷史授信案件**，作為「利害關係人授信條件比較表」的**比較對象**。查詢結果將排除那些已經被目前案件(`?1`)選為比較對象的案件，以及本身就是利害關係人的案件。
+                </p>
+            </div>
+        </section>
+
+        <!-- 2. 資料來源與關聯 -->
+        <section class="mb-10">
+            <h2 class="text-2xl font-bold text-gray-700 mb-4 border-l-4 border-green-500 pl-3">2. 資料來源與關聯 (FROM & JOIN)</h2>
+            <div class="grid md:grid-cols-3 gap-8 items-start relative">
+                <!-- Table 1 -->
+                <div class="card p-6 text-center">
+                    <h3 class="font-bold text-lg text-green-700" title="CLM_CREDIT_LIMIT_ITEM">授信額度分項檔</h3>
+                    <p class="text-sm text-gray-500 mb-2">(別名: <span class="font-mono bg-gray-200 px-1 rounded">li</span>)</p>
+                    <p class="text-gray-600">這是查詢的核心，記錄了每一筆授信案件的詳細分項資料。</p>
+                </div>
+                <!-- Table 2 -->
+                <div class="card p-6 text-center">
+                    <h3 class="font-bold text-lg text-green-700" title="CLM_CREDIT_LIMIT_CONDITION">授信額度條件檔</h3>
+                    <p class="text-sm text-gray-500 mb-2">(別名: <span class="font-mono bg-gray-200 px-1 rounded">lc</span>)</p>
+                    <p class="text-gray-600">提供主額度的條件，如幣別和總金額。</p>
+                </div>
+                <!-- Table 3 -->
+                <div class="card p-6 text-center">
+                    <h3 class="font-bold text-lg text-green-700" title="CMN_CASE_MASTER">案件主檔</h3>
+                    <p class="text-sm text-gray-500 mb-2">(別名: <span class="font-mono bg-gray-200 px-1 rounded">cm</span>)</p>
+                    <p class="text-gray-600">提供案件的整體資訊，如客戶資料和案件狀態。</p>
+                </div>
+                 <!-- Join Visualizations -->
+                 <div class="absolute top-1/2 left-0 right-0 h-0.5 bg-gray-300 hidden md:block" style="z-index: -1;"></div>
+                 <div class="absolute top-1/2 left-1/3 transform -translate-x-1/2 -translate-y-1/2 bg-white p-2 rounded-full border border-gray-300 hidden md:block">
+                     <span class="join-text">JOIN ON case_sn, apply_no, ...</span>
+                 </div>
+                 <div class="absolute top-1/2 left-2/3 transform -translate-x-1/2 -translate-y-1/2 bg-white p-2 rounded-full border border-gray-300 hidden md:block">
+                     <span class="join-text">JOIN ON case_sn</span>
+                 </div>
+            </div>
+        </section>
+
+        <!-- 3. 篩選條件 -->
+        <section class="mb-10">
+            <h2 class="text-2xl font-bold text-gray-700 mb-4 border-l-4 border-yellow-500 pl-3">3. 篩選條件 (WHERE)</h2>
+            <div class="card p-6 space-y-4">
+                <h3 class="font-semibold text-lg text-gray-800">主要條件 (滑鼠可懸停查看欄位中文名)：</h3>
+                <div class="flex flex-wrap items-center">
+                    <span class="pill pill-blue" title="申覆識別">li.APPEAL_FLAG = 1</span>
+                    <span class="pill pill-blue" title="案件類型">cm.CASE_TYPE IN ('11','J1','1D','1F')</span>
+                    <span class="pill pill-blue" title="案件狀態">cm.case_status = '2'</span>
+                    <span class="pill pill-blue" title="案件結案狀態">cm.CASE_CLOSE_STATUS = 'C0'</span>
+                    <span class="pill pill-blue" title="結案日期">結案日期 >= 過去一年</span>
+                    <span class="pill pill-yellow" title="科目代碼">科目代碼 (li.ACCOUNT_CODE) = <span class="font-mono">?2</span></span>
+                    <span class="pill pill-yellow" title="資金用途(一)">資金用途 (li.PURPOSE1) = <span class="font-mono">?3</span></span>
+                    <span class="pill pill-yellow" title="案件編號">案件編號 (cm.case_sn) = <span class="font-mono">?5</span> (若有提供)</span>
+                </div>
+                
+                <div class="accordion-header bg-gray-100 p-3 rounded-lg flex justify-between items-center" onclick="toggleAccordion('currency-filter')">
+                    <h4 class="font-medium text-gray-700">複雜條件：幣別篩選 (點擊展開/收合)</h4>
+                    <span class="transform transition-transform duration-300" id="currency-filter-arrow">▼</span>
+                </div>
+                <div id="currency-filter" class="accordion-content pl-4 border-l-2 border-gray-200">
+                    <div class="p-4 mt-2 bg-gray-50 rounded-md">
+                        <p class="text-sm text-gray-600 mb-2">這段邏輯是為了處理兩種不同的額度類型 (`ITEM_TYPE`)，並根據傳入的幣別參數 (`?4`) 進行篩選：</p>
+                        <ul class="list-disc list-inside space-y-2 text-gray-700">
+                            <li><strong>如果額度類型 (li.ITEM_TYPE) 是 '2' (分項額度):</strong>
+                                <ul class="list-inside list-['-_'] ml-4">
+                                    <li>檢查 <span class="pill pill-purple" title="分項額度幣別">li.ITEM_CCY</span> 是否等於傳入的 `?4`。</li>
+                                    <li>如果 `?4` 未提供，則只找幣別為 NULL 的資料。</li>
+                                </ul>
+                            </li>
+                            <li><strong>如果額度類型 (li.ITEM_TYPE) 是 '1' (主額度):</strong>
+                                <ul class="list-inside list-['-_'] ml-4">
+                                    <li>檢查 <span class="pill pill-purple" title="授信幣別">lc.CREDIT_CCY</span> 是否等於傳入的 `?4`。</li>
+                                    <li>如果 `?4` 未提供，則只找幣別為 NULL 的資料。</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <h3 class="font-semibold text-lg text-gray-800 pt-4">排除條件 (透過子查詢)：</h3>
+                <div class="space-y-4">
+                    <!-- Exclusion 1 -->
+                    <div class="card border border-red-200 p-4">
+                        <h4 class="font-medium text-red-700">排除 1: 已被選為比較對象的案件</h4>
+                        <p class="text-sm text-gray-600">使用 <code class="bg-red-100 text-red-800 px-1 rounded">NOT IN</code>，排除 <span class="font-mono">li.LIST_ID</span> 已存在於 `CLM_STAKEHOLDER_CONDITION_COMPARISON` 表中的紀錄 (針對目前案件 <span class="font-mono">?1</span>)。</p>
+                    </div>
+                    <!-- Exclusion 2 -->
+                    <div class="card border border-red-200 p-4">
+                         <div class="accordion-header flex justify-between items-center" onclick="toggleAccordion('stakeholder-filter')">
+                            <h4 class="font-medium text-red-700">排除 2: 利害關係人案件 (點擊展開/收合)</h4>
+                            <span class="transform transition-transform duration-300" id="stakeholder-filter-arrow">▼</span>
+                         </div>
+                         <div id="stakeholder-filter" class="accordion-content">
+                            <p class="text-sm text-gray-600 mt-2">使用 <code class="bg-red-100 text-red-800 px-1 rounded">NOT EXISTS</code>，檢查案件的關係人中，是否有人的 <span class="font-mono" title="本行利害關係人">STAKE_HOLDER_FLAG</span> (在 DDL 中描述為「本行利害關係人」) 被標記為 'Y'。如果存在，則該案件將被排除。</p>
+                            <div class="mt-3 p-3 bg-gray-50 rounded-md border text-sm">
+                                <p class="font-semibold">子查詢內部邏輯：</p>
+                                <ul class="list-disc list-inside ml-2 mt-1 text-gray-700">
+                                    <li>從 `cmn_case_party` (p) 表開始。</li>
+                                    <li>左連接到個人客戶檔 (cp) 和公司客戶檔 (cc)。</li>
+                                    <li>篩選條件：
+                                        <ul class="list-inside list-['-_'] ml-4">
+                                            <li title="關係人型態">p.interest_party_type IN ('01', '02')</li>
+                                            <li>個人或公司的 <span class="font-mono">STAKE_HOLDER_FLAG</span> = 'Y'</li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </div>
+                         </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- 4. 最終選取欄位 -->
+        <section>
+            <h2 class="text-2xl font-bold text-gray-700 mb-4 border-l-4 border-purple-500 pl-3">4. 最終選取欄位 (SELECT)</h2>
+            <div class="card p-6">
+                <ul class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-4 text-sm">
+                    <li>listId <span class="text-gray-500">(清單ID)</span></li>
+                    <li>caseSn <span class="text-gray-500">(案件編號)</span></li>
+                    <li>applyNo <span class="text-gray-500">(申請書編號)</span></li>
+                    <li>itemNo <span class="text-gray-500">(項次)</span></li>
+                    <li>accountCode <span class="text-gray-500">(科目代碼)</span></li>
+                    <li>accountSupplement <span class="text-gray-500">(科目代碼補編)</span></li>
+                    <li>itemType <span class="text-gray-500">(額度類型)</span></li>
+                    <li>purpose1 <span class="text-gray-500">(資金用途一)</span></li>
+                    <li>itemPeriodType <span class="text-gray-500">(期間類型)</span></li>
+                    <li>itemPeriodYear <span class="text-gray-500">(期間(年))</span></li>
+                    <li>itemPeriodMonth <span class="text-gray-500">(期間(月))</span></li>
+                    <li>updateTimestamp <span class="text-gray-500">(更新時間)</span></li>
+                    <li>itemPeriodDate <span class="text-gray-500">(到期日)</span></li>
+                    <li>paybackWay <span class="text-gray-500">(還款方式)</span></li>
+                    <li>paybackOtherDesc <span class="text-gray-500">(其他還款方式說明)</span></li>
+                    <li>gracePeriod <span class="text-gray-500">(寬限期)</span></li>
+                    <li>amoritizationPeriod <span class="text-gray-500">(攤還期間)</span></li>
+                    <li>caseType <span class="text-gray-500">(案件類型)</span></li>
+                    <li>caseCloseStatus <span class="text-gray-500">(案件結案狀態)</span></li>
+                    <li>closeDate <span class="text-gray-500">(結案日期)</span></li>
+                    <li>customerId <span class="text-gray-500">(客戶ID)</span></li>
+                    <li>customerName <span class="text-gray-500">(客戶名稱)</span></li>
+                </ul>
+                <div class="mt-6 space-y-3">
+                    <div class="p-4 bg-purple-50 border-l-4 border-purple-400 rounded-r-lg">
+                        <h4 class="font-semibold text-purple-800">itemCcy (幣別)</h4>
+                        <p class="text-purple-700 text-sm">動態決定：若為<span class="font-mono">'1' (主額度)</span>，取 `lc.CREDIT_CCY`；若為<span class="font-mono">'2' (分項額度)</span>，則取 `li.ITEM_CCY`。</p>
+                    </div>
+                    <div class="p-4 bg-purple-50 border-l-4 border-purple-400 rounded-r-lg">
+                        <h4 class="font-semibold text-purple-800">itemAmount (金額)</h4>
+                        <p class="text-purple-700 text-sm">動態決定：若為<span class="font-mono">'1' (主額度)</span>，取 `lc.CREDIT_AMOUNT`；若為<span class="font-mono">'2' (分項額度)</span>，則取 `li.ITEM_AMOUNT`。</p>
+                    </div>
+                    <div class="p-4 bg-purple-50 border-l-4 border-purple-400 rounded-r-lg">
+                        <h4 class="font-semibold text-purple-800">hasGuarantor (有無保證人)</h4>
+                        <p class="text-purple-700 text-sm">透過子查詢檢查 `CLM_CREDIT_LIMIT_PARTY` 表中是否存在 `DATA_TYPE` 為 '02' (保證人) 的紀錄。若存在，回傳 'Y'，否則回傳 'N'。</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <script>
+        function toggleAccordion(id) {
+            const content = document.getElementById(id);
+            const arrow = document.getElementById(id + '-arrow');
+            if (content.classList.contains('open')) {
+                content.classList.remove('open');
+                if(arrow) arrow.style.transform = 'rotate(0deg)';
+            } else {
+                content.classList.add('open');
+                if(arrow) arrow.style.transform = 'rotate(180deg)';
+            }
+        }
+    </script>
+</body>
+</html>
